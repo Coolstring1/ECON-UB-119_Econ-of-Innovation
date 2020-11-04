@@ -7,6 +7,7 @@ rm(list = ls())
 startups <- read_stata("aggregate_startups.dta")  # read_dta is used for .dta files
 patents <- read_stata("aggcount_patents.dta")
 startups_by_nace <- read_stata("science_yearly_nace.dta")
+patent_categories <- read_stata("aggcount_tech1.dta")
 
 startups_w <- reshape(as.data.frame(startups),
                       idvar = "yr", # which var is id
@@ -61,13 +62,14 @@ ggplot(patents_w, aes(x=appyr)) +
   ) + 
   ggtitle("University versus non-university patents, per worker")+
   scale_x_continuous("Year of patent application",labels = as.character(patents_w$appyr), breaks = patents_w$appyr)+
-  geom_vline(xintercept = 2003,color = "black",linetype = "dotted")
+  geom_vline(xintercept = 2003,color = "black",linetype = "dotted", size = .8)
+
 #2*2table
 startups_table <- filter(startups_w, yr %in% c('2002','2003'))
-startups_table <- startups_table[c('yr','startups_0','startups_1')]
+startups_table <- startups_table[c('yr','startups_pc_0','startups_pc_1')]
 
 patents_table <- filter(patents_w, appyr %in% c('2002','2003'))
-patents_table <- patents_table[c('appyr','patents_0','patents_1')]
+patents_table <- patents_table[c('appyr','patents_pc_0','patents_pc_1')]
 
 ##diff in diff
 ######sample 0 and 2
@@ -117,9 +119,10 @@ t.test(perc_change ~sample,
        paired = FALSE)
 #####t-test for patents
 
-patent_sample <- patents %>% filter(appyr %in% c(2002,2003)) %>%
-  select(treated, appyr, patents_pc)
+patent_sample <- patent_categories %>% filter(appyr %in% c(2002,2003)) %>%
+  select(treated, appyr, techdum1, patents_pc)
 
+########################################################################################issue here#######
 patent_sample <- reshape(as.data.frame(patent_sample),
                                      idvar = c("treated"), 
                                      direction = "wide", 
@@ -134,6 +137,8 @@ patent_sample <- patent_sample %>%
 t.test(perc_change ~treated, 
        data = patent_sample, 
        paired = FALSE)
+##########################################################################################################
+
 
 ##regression 
 startups_by_nace <- startups_by_nace %>%
