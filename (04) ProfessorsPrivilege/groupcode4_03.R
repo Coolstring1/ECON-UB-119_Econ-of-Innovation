@@ -204,8 +204,8 @@ huxreg(reg1,reg1.5, reg2, reg3,
                  "Patent_treat&post"="treated_post"),
        statistics = c("N" = "nobs", 
                       "R^2" = "r.squared")) %>%
-  add_rows(rbind(c("Year FE", "no", "no",'no'), #note! you need more "yes" if you have >3 models
-                 c("Control group", "All workers",'All workers', "With PhD","Control group")), 
+  add_rows(rbind(c("Year FE", "no", "no",'no'，'no'), #note! you need more "yes" if you have >3 models
+                 c("Control group", "All workers",'All workers', "With PhD","All workers")), 
            copy_cell_props = FALSE,
            after = c(nrow(.) - 3)) #%>% 
 quick_docx("report_reg.docx")
