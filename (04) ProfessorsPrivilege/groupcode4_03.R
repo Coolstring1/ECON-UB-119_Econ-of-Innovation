@@ -173,7 +173,8 @@ patent_regression <- patent_categories%>%
   filter(appyr %in% c(2000,2001,2002,2003,2004,2005,2006,2007))
 patent_regression$post <- ifelse(patent_regression$appyr < 2003, 0, 1)
 patent_regression$treated_post <- ifelse (patent_regression$appyr >=2003 & patent_regression$treated == 1,  1, 0)
-
+patent_regression <- patent_regression%>%
+  mutate(patent_p100k = patents_pc * 100000)
 
 reg1 <- felm(startups_p100k ~ treated + after + after_treated, #no fixed efects
              data = startups_by_nace %>% filter(sample %in% c(0,2))) # sample==2 is workers outside unis
@@ -183,10 +184,9 @@ reg1.5 <- felm(startups_p100k ~ treated + after + after_treated|
 reg2 <- felm(startups_p100k ~ treated + after + after_treated | 
                n1, # field fixed effects
              data = startups_by_nace %>% filter(sample %in% c(0,4))) # sample==4 is workers with PhD
-reg3 <-  felm(patents_pc ~ treated + post + treated_post | 
+reg3 <-  felm(patent_p100k ~ treated + post + treated_post | 
                 techdum1, # field fixed effects
               data = patent_regression)
-
 
 # a summary that is easier to read
 huxreg(reg1,reg1.5, reg2, reg3,
@@ -204,8 +204,8 @@ huxreg(reg1,reg1.5, reg2, reg3,
                  "Patent_treat&post"="treated_post"),
        statistics = c("N" = "nobs", 
                       "R^2" = "r.squared")) %>%
-  add_rows(rbind(c("Year FE", "no", "no",'no', "no"), #note! you need more "yes" if you have >3 models
-                 c("Control group", "All workers",'All workers', "With PhD","Control group")), 
+  add_rows(rbind(c("Year FE", "no", "no",'no'，'no'), #note! you need more "yes" if you have >3 models
+                 c("Control group", "All workers",'All workers', "With PhD","All workers")), 
            copy_cell_props = FALSE,
            after = c(nrow(.) - 3)) #%>% 
 quick_docx("report_reg.docx")
