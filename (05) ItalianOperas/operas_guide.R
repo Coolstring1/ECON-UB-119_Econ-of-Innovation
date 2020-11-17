@@ -47,12 +47,14 @@ operas_w <- reshape(as.data.frame(operas_c),
                    timevar = "treated",  # which var is repeating
                    sep = "_")
 
+operas_w <- operas_w %>% mutate(mean_0 = operas_count_0/regions_0,
+                                mean_1 = operas_count_1/regions_1)
 # Make two Time Series Graphs (figure 1B below, easy to change for Figure 2B)
 ggplot(operas_w) +
-  geom_line(aes(x=year, y=operas_count_0, colour = "royalblue"), size = .8) +
-  geom_point(aes(x=year, y=operas_count_0, colour = "royalblue"), size = 1.2) +
-  geom_line(aes(x=year, y=operas_count_1, colour = "darkorange2"), size = .8) +
-  geom_point(aes(x=year, y=operas_count_1, colour = "darkorange2"), size = 1.2) +
+  geom_line(aes(x=year, y=mean_0, colour = "royalblue"), size = .8) +
+  geom_point(aes(x=year, y=mean_0, colour = "royalblue"), size = 1.2) +
+  geom_line(aes(x=year, y=mean_1, colour = "darkorange2"), size = .8) +
+  geom_point(aes(x=year, y=mean_1, colour = "darkorange2"), size = 1.2) +
   scale_color_identity(name = "", 
                        breaks = c("royalblue", "darkorange2"), 
                        labels = c("Operas in regions without copyright", 
@@ -68,6 +70,7 @@ ggplot(operas_w) +
 # you can make the aspect ration different by chaning width and height
 ggsave(paste0("figure1.png"),
        width = 8, height = 6, units = "in")
+
 
 
 #########
