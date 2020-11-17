@@ -42,10 +42,13 @@ operas_c <- operas %>% mutate(treated = state %in% c("lombardy", "venetia")) %>%
 ### GRAPH ###
 # reshape data to wide to make graphs
 operas_w <- reshape(as.data.frame(operas_c),
-                   idvar = "year", # which var is id
-                   direction = "wide", # how you want things reshaped
-                   timevar = "treated",  # which var is repeating
-                   sep = "_")
+                    idvar = "year", # which var is id
+                    direction = "wide", # how you want things reshaped
+                    timevar = "treated",  # which var is repeating
+                    sep = "_")
+
+operas_w <- operas_w %>% mutate(mean_0 = operas_count_0/regions_0,
+                                mean_1 = operas_count_1/regions_1)
 
 # Make two Time Series Graphs (figure 1B below, easy to change for Figure 2B)
 ggplot(operas_w) +
@@ -138,8 +141,8 @@ reg2 <- felm(operas_count ~ post_treat|
 
 # alternative way to integrate state fixed effects
 reg2_alternative <- felm(operas_count ~ yr00_20 + post_treat + factor(state)|
-                        0,
-                      data = operas_forreg)
+                           0,
+                         data = operas_forreg)
 
 # reg3 will give an error. This is because you can't
 # estimate the effect of being treated AND the effect of being a particular state.
