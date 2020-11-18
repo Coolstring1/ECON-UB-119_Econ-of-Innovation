@@ -11,7 +11,7 @@ library(gridExtra)
 library(lfe) # to run fixed effect models
 rm(list = ls())	
 
-setwd("/Users/Rusanov/Dropbox/NYU/teach innovation ug/data_labs/5_italian_opera/code_data/") 
+#setwd("/Users/Rusanov/Dropbox/NYU/teach innovation ug/data_labs/5_italian_opera/code_data/") 
 
 #########
 # Part 1: figure
@@ -55,6 +55,11 @@ ggplot(operas_w) +
   geom_point(aes(x=year, y=mean_0, colour = "royalblue"), size = 1.2) +
   geom_line(aes(x=year, y=mean_1, colour = "darkorange2"), size = .8) +
   geom_point(aes(x=year, y=mean_1, colour = "darkorange2"), size = 1.2) +
+  geom_vline(xintercept = 1801, linetype = "dashed", size = 0.75) +
+  geom_text(aes(x=1794, label="1801 Copyright Law", y=5.5), 
+            colour="black", 
+            angle=0, 
+            text=element_text(size=10)) +
   scale_color_identity(name = "", 
                        breaks = c("royalblue", "darkorange2"), 
                        labels = c("Operas in regions without copyright", 
@@ -62,8 +67,8 @@ ggplot(operas_w) +
                        guide = "legend") +
   theme_bw() +
   xlab("Year") +
-  ylab("Operas, total") +
-  ggtitle("Figure 1 - Opears in Italian regions") +
+  ylab("Mean New Operas per Year") +
+  ggtitle("Figure 1 - Operas in Italian regions from 1780 to 1820") +
   theme(legend.position = "right", legend.text = element_text(size = 10))
 
 # ggsave() is a nice and reproducible way to save graph. Png is a good format.
@@ -79,25 +84,62 @@ ggsave(paste0("figure1.png"),
 # than the inbuilt one
 operas_table <- operas %>%
   filter(year %in% 1781:1820) %>% #drop the 1821 operas
-  mutate(yr00_20 = as.numeric(year>=1800), #year is above 1801
+  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
          treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
   group_by(yr00_20, treated) %>% 
   summarise(operas_count = n(),
             regions = n_distinct(state),
             length = n_distinct(year)) %>%
   mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
-  select(treated, operas_peryar_perregion, yr00_20) %>%
-  spread(treated, operas_peryar_perregion) #the new reshape that you should learn
+  group_by(treated) %>%
+  mutate(operas_total_peryar_perregion = sum(operas_count)/(regions*length)) %>%
+  ungroup() %>%
+  select(treated, operas_peryar_perregion, operas_total_peryar_perregion, yr00_20)
+total_values = data.frame("yr00_20" = 2, 
+                          "0" = operas_table$operas_total_peryar_perregion[1], 
+                          "1" = operas_table$operas_total_peryar_perregion[2])
+total_values <- total_values %>% rename("0" = X0, "1" = X1)
+operas_table = operas_table %>% 
+                select(-operas_total_peryar_perregion) %>% 
+                spread(treated, operas_peryar_perregion)
+operas_table <- rbind(operas_table,total_values)
 
-new_table <- rbind(operas_table ,operas_table) #combine two tables 
-# (here, I just combined the table with itself)
 
+operas_table_pop_Annals <- operas %>%
+  filter(year %in% 1781:1820 & annals == 1) %>% #drop the 1821 operas and include only those in the annals
+  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n(),
+            regions = case_when(treated == 0 ~ 6,treated == 1 ~ 2),
+            length = 20) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  group_by(treated) %>%
+  mutate(operas_total_peryar_perregion = sum(operas_count)/(regions*length)) %>%
+  ungroup() %>%
+  select(treated, operas_peryar_perregion, operas_total_peryar_perregion, yr00_20) %>%
+  distinct()
+total_values_pop_Annals = data.frame("yr00_20" = 2, 
+                                     "0" = operas_table_pop_Annals$operas_total_peryar_perregion[1], 
+                                     "1" = operas_table_pop_Annals$operas_total_peryar_perregion[2])
+total_values_pop_Annals <- total_values_pop_Annals %>% rename("0" = X0, "1" = X1)
+operas_table_pop_Annals = operas_table_pop_Annals %>% 
+  select(-operas_total_peryar_perregion) %>% 
+  spread(treated, operas_peryar_perregion)
+operas_table_pop_Annals <- rbind(operas_table_pop_Annals,total_values_pop_Annals)
+
+
+operas_table_pop_Amazon
+
+operas_table_pop_total
+
+operas_table_output <- rbind()
 #########
 # Part 3: regressions
 #########
 operas_forreg <- operas %>%
   filter(year %in% 1781:1820) %>% #drop the 1821 operas
-  mutate(yr00_20 = as.numeric(year>=1800), #year is above 1801
+  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
          treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
   group_by(yr00_20, treated, state) %>% 
   summarise(operas_count = n(),
