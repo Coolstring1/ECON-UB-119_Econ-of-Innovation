@@ -80,6 +80,101 @@ ggsave(paste0("figure1.png"),
 #########
 # Part 2: table
 #########
+
+
+operas_table <- operas %>%
+  filter(year %in% 1781:1820) %>% #drop the 1821 operas
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n(),
+            regions = n_distinct(state),
+            length = n_distinct(year)) #%>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion, yr00_20) %>%
+  spread(treated, operas_peryar_perregion)
+
+opera_total_table <- operas %>%
+  filter(year %in% 1781:1820) %>%
+  mutate(treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(treated)%>%
+  summarise(operas_count = n(),
+            regions = n_distinct(state),
+            length = n_distinct(year)) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion) %>%
+  spread(treated, operas_peryar_perregion) %>%
+  mutate(yr00_20=2)
+  
+table1_part1 <- rbind(opera_total_table , operas_table)
+#########################
+
+operas_table2 <- operas %>%
+  filter(year %in% 1781:1820 & annals == 1) %>% 
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 20,
+         operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion, yr00_20) %>%
+  spread(treated, operas_peryar_perregion)
+
+opera_total_table2 <- operas %>%
+  filter(year %in% 1781:1820 & annals == 1) %>%
+  mutate(treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(treated)%>%
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 40) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion) %>%
+  spread(treated, operas_peryar_perregion) %>%
+  mutate(yr00_20=2)
+
+table1_part2 <- rbind(opera_total_table2 , operas_table2)
+#######################
+
+operas_table3 <- operas %>%
+  filter(year %in% 1781:1820 & amazon == 1) %>% 
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 20,
+         operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion, yr00_20) %>%
+  spread(treated, operas_peryar_perregion)
+
+
+opera_total_table3 <- operas %>%
+  filter(year %in% 1781:1820 & amazon == 1) %>%
+  mutate(treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(treated)%>%
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 40) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion) %>%
+  spread(treated, operas_peryar_perregion) %>%
+  mutate(yr00_20=2)
+
+table1_part3 <- rbind(opera_total_table3 , operas_table3)
+
+final_table1 <- rbind(table1_part1,table1_part2,table1_part3)
+
+# 2c popular operas
+popular_opera <- operas %>%
+  mutate(popular = annals + amazon)
+table(popular_opera$popular >0)
+
+
+
+
+
+
 # Please learn a new way to reshape. Maybe you'll like it better
 # than the inbuilt one
 operas_table <- operas %>%
@@ -139,39 +234,68 @@ operas_table_output <- rbind()
 #########
 operas_forreg <- operas %>%
   filter(year %in% 1781:1820) %>% #drop the 1821 operas
-  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
          treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
-  group_by(yr00_20, treated, state) %>% 
+  group_by(year, yr00_20, treated, state) %>% 
   summarise(operas_count = n(),
             regions = n_distinct(state),
             length = n_distinct(year)) %>%
   mutate(operas_peryar_perregion = operas_count/(regions*length),
          post_treat = yr00_20*treated) 
 
-# I will first do without fixed effects, and then with (opposit of what the lab wants)
-reg1 <- felm(operas_peryar_perregion ~  treated  + yr00_20 +post_treat| 
-               0 | #without state fixed effects
-               0,
-             data=operas_forreg)
-tidy(reg1) #nice command for a summary of regression
+operas_template <- operas_forreg %>%select(year,state)
 
-# now with state FE
-reg2 <- felm(operas_peryar_perregion ~ yr00_20 +post_treat| 
-               state| #with state fixed effects (fe variable goes after the first | )
-               0,
-             data=operas_forreg)
+operas_pop <- operas %>% filter(title !='' & first_name !='') %>%
+  mutate(treated = state %in% c("lombardy", "venetia")) %>%
+  mutate(treated = as.numeric(treated)) %>%
+  group_by(year, state) %>% 
+  summarise(operas_count = n()) 
+  
+operas_fam <- merge(operas_template, operas_pop,
+                    by=c('year','state'),
+                    all.x = TRUE)
 
-# now with state and year FE
-reg2 <- felm(operas_peryar_perregion ~ post_treat| 
+operas_fam <- operas_fam %>% mutate( count_operas = replace_na(operas_count,0))%>%
+  mutate(post_treat = yr00_20*treated)
+
+
+
+reg <- felm(count_operas ~ post_treat| 
                state +year| # two FEs? use a + to add them
                0,
-             data=operas_forreg)
+             data=operas_fam) 
+summary(reg)
 
-# reg3 will give an error. This is because you can't
-# estimate the effect of being treated AND the effect of being a particular state.
-reg3 <- felm(operas_peryar_perregion ~ treated + yr00_20 +post_treat| 
-               state| #with state fixed effects
-               0,
-             data=operas_forreg)
-# this error is the reason why I remove the treated and teh yr00_20 from the 
-# regressor when I include the fixed effects
+
+#3b
+operas <- operas %>%
+  mutate(pop = annals + amazon)
+
+operas$popular <- ifelse(is.na(operas$pop), NA, operas$pop)
+operas$popular <- ifelse(operas$popular>0,1,0)
+
+operas_pop2 <- operas %>% filter(title !='' & first_name !=''& popular==1) %>%
+  mutate(treated = state %in% c("lombardy", "venetia")) %>%
+  mutate(treated = as.numeric(treated)) %>%
+  group_by(year, state) %>% 
+  summarise(operas_count = n()) 
+
+operas_fam2 <- merge(operas_template, operas_pop2,
+                    by=c('year','state'),
+                    all.x = TRUE)
+
+operas_fam2 <- operas_fam2 %>% mutate( count_operas = replace_na(operas_count,0))%>%
+  mutate(post_treat = yr00_20*treated)
+
+reg2 <- felm(count_operas ~ post_treat| 
+              state +year| # two FEs? use a + to add them
+              0,
+            data=operas_fam2) 
+summary(reg2)
+
+#3c
+reg3 <- felm(count_operas ~ post_treat + yr00_20 + post_treat| 
+              0| # without 2 FE
+              0,
+            data=operas_fam) 
+summary(reg3)
