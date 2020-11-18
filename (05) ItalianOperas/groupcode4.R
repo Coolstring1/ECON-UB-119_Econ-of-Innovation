@@ -234,39 +234,34 @@ operas_table_output <- rbind()
 #########
 operas_forreg <- operas %>%
   filter(year %in% 1781:1820) %>% #drop the 1821 operas
-  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
          treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
-  group_by(yr00_20, treated, state) %>% 
+  group_by(year, yr00_20, treated, state) %>% 
   summarise(operas_count = n(),
             regions = n_distinct(state),
             length = n_distinct(year)) %>%
   mutate(operas_peryar_perregion = operas_count/(regions*length),
          post_treat = yr00_20*treated) 
 
-# I will first do without fixed effects, and then with (opposit of what the lab wants)
-reg1 <- felm(operas_peryar_perregion ~  treated  + yr00_20 +post_treat| 
-               0 | #without state fixed effects
-               0,
-             data=operas_forreg)
-tidy(reg1) #nice command for a summary of regression
+operas_template <- operas_forreg %>%select(year,state)
 
-# now with state FE
-reg2 <- felm(operas_peryar_perregion ~ yr00_20 +post_treat| 
-               state| #with state fixed effects (fe variable goes after the first | )
-               0,
-             data=operas_forreg)
+operas_pop <- operas %>% filter(title !='' & first_name !='') %>%
+  mutate(treated = state %in% c("lombardy", "venetia")) %>%
+  mutate(treated = as.numeric(treated)) %>%
+  group_by(year, state) %>% 
+  summarise(operas_count = n()) 
+  
+operas_fam <- merge(operas_template, operas_pop,
+                    by=c('year','state'),
+                    all.x = TRUE)
 
-# now with state and year FE
-reg2 <- felm(operas_peryar_perregion ~ post_treat| 
+operas_fam <- operas_fam %>% mutate( count_operas = replace_na(operas_count,0))%>%
+  mutate(post_treat = yr00_20*treated)
+
+
+
+reg <- felm(count_operas ~ post_treat| 
                state +year| # two FEs? use a + to add them
                0,
-             data=operas_forreg)
-
-# reg3 will give an error. This is because you can't
-# estimate the effect of being treated AND the effect of being a particular state.
-reg3 <- felm(operas_peryar_perregion ~ treated + yr00_20 +post_treat| 
-               state| #with state fixed effects
-               0,
-             data=operas_forreg)
-# this error is the reason why I remove the treated and teh yr00_20 from the 
-# regressor when I include the fixed effects
+             data=operas_fam) 
+summary(reg)
