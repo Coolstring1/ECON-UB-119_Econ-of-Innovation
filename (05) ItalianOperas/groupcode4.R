@@ -265,3 +265,37 @@ reg <- felm(count_operas ~ post_treat|
                0,
              data=operas_fam) 
 summary(reg)
+
+
+#3b
+operas <- operas %>%
+  mutate(pop = annals + amazon)
+
+operas$popular <- ifelse(is.na(operas$pop), NA, operas$pop)
+operas$popular <- ifelse(operas$popular>0,1,0)
+
+operas_pop2 <- operas %>% filter(title !='' & first_name !=''& popular==1) %>%
+  mutate(treated = state %in% c("lombardy", "venetia")) %>%
+  mutate(treated = as.numeric(treated)) %>%
+  group_by(year, state) %>% 
+  summarise(operas_count = n()) 
+
+operas_fam2 <- merge(operas_template, operas_pop2,
+                    by=c('year','state'),
+                    all.x = TRUE)
+
+operas_fam2 <- operas_fam2 %>% mutate( count_operas = replace_na(operas_count,0))%>%
+  mutate(post_treat = yr00_20*treated)
+
+reg2 <- felm(count_operas ~ post_treat| 
+              state +year| # two FEs? use a + to add them
+              0,
+            data=operas_fam2) 
+summary(reg2)
+
+#3c
+reg3 <- felm(count_operas ~ post_treat + yr00_20 + post_treat| 
+              0| # without 2 FE
+              0,
+            data=operas_fam) 
+summary(reg3)
