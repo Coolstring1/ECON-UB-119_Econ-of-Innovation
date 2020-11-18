@@ -80,6 +80,98 @@ ggsave(paste0("figure1.png"),
 #########
 # Part 2: table
 #########
+
+
+operas_table <- operas %>%
+  filter(year %in% 1781:1820) %>% #drop the 1821 operas
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n(),
+            regions = n_distinct(state),
+            length = n_distinct(year)) #%>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion, yr00_20) %>%
+  spread(treated, operas_peryar_perregion)
+
+opera_total_table <- operas %>%
+  filter(year %in% 1781:1820) %>%
+  mutate(treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(treated)%>%
+  summarise(operas_count = n(),
+            regions = n_distinct(state),
+            length = n_distinct(year)) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion) %>%
+  spread(treated, operas_peryar_perregion) %>%
+  mutate(yr00_20=2)
+  
+table1_part1 <- rbind(opera_total_table , operas_table)
+#########################
+
+operas_table2 <- operas %>%
+  filter(year %in% 1781:1820 & annals == 1) %>% 
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 20,
+         operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion, yr00_20) %>%
+  spread(treated, operas_peryar_perregion)
+
+opera_total_table2 <- operas %>%
+  filter(year %in% 1781:1820 & annals == 1) %>%
+  mutate(treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(treated)%>%
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 40) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion) %>%
+  spread(treated, operas_peryar_perregion) %>%
+  mutate(yr00_20=2)
+
+table1_part2 <- rbind(opera_total_table2 , operas_table2)
+#######################
+
+operas_table3 <- operas %>%
+  filter(year %in% 1781:1820 & amazon == 1) %>% 
+  mutate(yr00_20 = as.numeric(year>=1801), #year is above 1801
+         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(yr00_20, treated) %>% 
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 20,
+         operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion, yr00_20) %>%
+  spread(treated, operas_peryar_perregion)
+
+
+opera_total_table3 <- operas %>%
+  filter(year %in% 1781:1820 & amazon == 1) %>%
+  mutate(treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
+  group_by(treated)%>%
+  summarise(operas_count = n()) %>%
+  mutate(regions = ifelse(treated==0, 6, 2),
+         length = 40) %>%
+  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
+  select(treated, operas_peryar_perregion) %>%
+  spread(treated, operas_peryar_perregion) %>%
+  mutate(yr00_20=2)
+
+table1_part3 <- rbind(opera_total_table3 , operas_table3)
+
+final_table1 <- rbind(table1_part1,table1_part2,table1_part3)
+
+
+
+
+
+
+
+
 # Please learn a new way to reshape. Maybe you'll like it better
 # than the inbuilt one
 operas_table <- operas %>%
