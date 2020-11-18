@@ -165,7 +165,10 @@ table1_part3 <- rbind(opera_total_table3 , operas_table3)
 
 final_table1 <- rbind(table1_part1,table1_part2,table1_part3)
 
-
+# 2c popular operas
+popular_opera <- operas %>%
+  mutate(popular = annals + amazon)
+table(popular_opera$popular >0)
 
 
 
