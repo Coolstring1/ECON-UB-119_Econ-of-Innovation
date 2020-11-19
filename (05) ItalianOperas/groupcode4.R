@@ -62,8 +62,8 @@ ggplot(operas_w) +
             text=element_text(size=10)) +
   scale_color_identity(name = "", 
                        breaks = c("royalblue", "darkorange2"), 
-                       labels = c("Operas in regions without copyright", 
-                                  "Operas in regions with copyright"), 
+                       labels = c("Operas in non-copyright regions", 
+                                  "Operas in copyright regions"), 
                        guide = "legend") +
   theme_bw() +
   xlab("Year") +
@@ -74,7 +74,7 @@ ggplot(operas_w) +
 # ggsave() is a nice and reproducible way to save graph. Png is a good format.
 # you can make the aspect ration different by chaning width and height
 ggsave(paste0("figure1.png"),
-       width = 8, height = 6, units = "in")
+       width = 8, height = 5, units = "in")
 
 
 #########
@@ -219,7 +219,7 @@ operas_fam <- operas_fam %>% mutate( count_operas = replace_na(operas_count,0))%
   mutate(post_treat = yr00_20*treated)
 
 
-
+ 
 reg <- felm(count_operas ~ post_treat| 
                state +year| # two FEs? use a + to add them
                0,
@@ -234,6 +234,7 @@ operas <- operas %>%
 operas$popular <- ifelse(is.na(operas$pop), NA, operas$pop)
 operas$popular <- ifelse(operas$popular>0,1,0)
 
+##regression with both popularity definitions##
 operas_pop2 <- operas %>% filter(title !='' & (first_name !='' | last_name != '') & popular==1) %>%
   mutate(treated = state %in% c("lombardy", "venetia")) %>%
   mutate(treated = as.numeric(treated)) %>%
@@ -253,6 +254,48 @@ reg2 <- felm(count_operas ~ post_treat|
             data=operas_fam2) 
 summary(reg2)
 
+##regression with annals popularity definition##
+operas_pop2_annals <- operas %>% filter(title !='' & (first_name !='' | last_name != '') & annals==1) %>%
+  mutate(treated = state %in% c("lombardy", "venetia")) %>%
+  mutate(treated = as.numeric(treated)) %>%
+  group_by(year, state) %>% 
+  summarise(operas_count = n()) 
+
+operas_fam2_annals <- merge(operas_template, operas_pop2_annals,
+                     by=c('year','state'),
+                     all.x = TRUE)
+
+operas_fam2_annals <- operas_fam2_annals %>% mutate( count_operas = replace_na(operas_count,0))%>%
+  mutate(post_treat = yr00_20*treated)
+
+reg2_annals <- felm(count_operas ~ post_treat| 
+               state +year| # two FEs? use a + to add them
+               0,
+             data=operas_fam2_annals) 
+summary(reg2_annals)
+
+##regression with amazon popularity definition##
+operas_pop2_amazon <- operas %>% filter(title !='' & (first_name !='' | last_name != '') & amazon==1) %>%
+  mutate(treated = state %in% c("lombardy", "venetia")) %>%
+  mutate(treated = as.numeric(treated)) %>%
+  group_by(year, state) %>% 
+  summarise(operas_count = n()) 
+
+operas_fam2_amazon <- merge(operas_template, operas_pop2_amazon,
+                            by=c('year','state'),
+                            all.x = TRUE)
+
+operas_fam2_amazon <- operas_fam2_amazon %>% mutate( count_operas = replace_na(operas_count,0))%>%
+  mutate(post_treat = yr00_20*treated)
+
+reg2_amazon <- felm(count_operas ~ post_treat| 
+                      state +year| # two FEs? use a + to add them
+                      0,
+                    data=operas_fam2_amazon) 
+summary(reg2_amazon)
+
+
+
 #3c
 reg3 <- felm(count_operas ~ treated + yr00_20 + post_treat| 
               0| # without 2 FE
@@ -260,16 +303,18 @@ reg3 <- felm(count_operas ~ treated + yr00_20 + post_treat|
             data=operas_fam) 
 summary(reg3)
 
-huxreg(reg, reg2, reg3,
+
+##regression table
+huxreg(reg, reg2_amazon, reg2_annals, reg2, reg3,
        stars = c(`*` = 0.1, `**` = 0.05, `***` = 0.01),
        coefs = c("Treated X post-1801" = "post_treat", # rename vars to smthing pretty
           "Post-1801" = "yr00_20",
           "Treated" = "treated"),
        statistics = c("N" = "nobs",
                       "R^2" = "r.squared")) %>%
-  add_rows(rbind(c("Year FE", "yes", "yes","no"), #note! you need more "yes" if you have >3 models
-                 c("State FE", "yes","yes", "no"),
-                 c("Sample", "Known", "Known & popular", "Known")),
+  add_rows(rbind(c("Year FE", "yes", "yes", "yes","yes", "no"), #note! you need more "yes" if you have >3 models
+                 c("State FE", "yes","yes", "yes", "yes", "no"),
+                 c("Sample", "Known", "Known & popular (amazon)", "Known & popular (annals)", "Known & popular (both)", "Known")),
            copy_cell_props = FALSE,
-           after = c(nrow(.) - 3))# %>%
-  # quick_docx("report_reg.docx")
+           after = c(nrow(.) - 3)) %>%
+  quick_docx("report_reg.docx")
