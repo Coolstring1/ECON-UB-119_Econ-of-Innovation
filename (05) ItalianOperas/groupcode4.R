@@ -89,7 +89,7 @@ operas_table <- operas %>%
   group_by(yr00_20, treated) %>% 
   summarise(operas_count = n(),
             regions = n_distinct(state),
-            length = n_distinct(year)) #%>%
+            length = n_distinct(year)) %>%
   mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
   select(treated, operas_peryar_perregion, yr00_20) %>%
   spread(treated, operas_peryar_perregion)
@@ -165,70 +165,30 @@ table1_part3 <- rbind(opera_total_table3 , operas_table3)
 
 final_table1 <- rbind(table1_part1,table1_part2,table1_part3)
 
+final_table1 = final_table1[c(3,2,1)]
+
+final_table1 <- final_table1 %>% rename("Years" = yr00_20, "Other States" = "0", "Venetia and Lombardy" = "1")
+
+final_table1$Years[final_table1$Years == 2] <- "1781-1820"
+final_table1$Years[final_table1$Years == 0] <- "1781-1800"
+final_table1$Years[final_table1$Years == 1] <- "1801-1820"
+
+final_table1 <- final_table1 %>% mutate(across(where(is.numeric), ~ round(., 3)))
+
 # 2c popular operas
 popular_opera <- operas %>%
-  mutate(popular = annals + amazon)
-table(popular_opera$popular >0)
+  mutate(popular = annals + amazon) %>%
+  filter(year %in% 1781:1820 & popular > 0)
+popular_opera_total = length(popular_opera$popular)
+popular_opera_amazon = length(popular_opera$popular[popular_opera$amazon == 1 & popular_opera$annals == 0])
+popular_opera_annal = length(popular_opera$popular[popular_opera$annals == 1 & popular_opera$amazon == 0])
+popular_opera_both = length(popular_opera$popular[popular_opera$amazon == 1 & popular_opera$annals == 1])
 
 
 
 
 
 
-# Please learn a new way to reshape. Maybe you'll like it better
-# than the inbuilt one
-operas_table <- operas %>%
-  filter(year %in% 1781:1820) %>% #drop the 1821 operas
-  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
-         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
-  group_by(yr00_20, treated) %>% 
-  summarise(operas_count = n(),
-            regions = n_distinct(state),
-            length = n_distinct(year)) %>%
-  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
-  group_by(treated) %>%
-  mutate(operas_total_peryar_perregion = sum(operas_count)/(regions*length)) %>%
-  ungroup() %>%
-  select(treated, operas_peryar_perregion, operas_total_peryar_perregion, yr00_20)
-total_values = data.frame("yr00_20" = 2, 
-                          "0" = operas_table$operas_total_peryar_perregion[1], 
-                          "1" = operas_table$operas_total_peryar_perregion[2])
-total_values <- total_values %>% rename("0" = X0, "1" = X1)
-operas_table = operas_table %>% 
-                select(-operas_total_peryar_perregion) %>% 
-                spread(treated, operas_peryar_perregion)
-operas_table <- rbind(operas_table,total_values)
-
-
-operas_table_pop_Annals <- operas %>%
-  filter(year %in% 1781:1820 & annals == 1) %>% #drop the 1821 operas and include only those in the annals
-  mutate(yr00_20 = as.numeric(year>1800), #year is above 1801
-         treated = as.numeric(state %in% c("lombardy", "venetia"))) %>%
-  group_by(yr00_20, treated) %>% 
-  summarise(operas_count = n(),
-            regions = case_when(treated == 0 ~ 6,treated == 1 ~ 2),
-            length = 20) %>%
-  mutate(operas_peryar_perregion = operas_count/(regions*length)) %>%
-  group_by(treated) %>%
-  mutate(operas_total_peryar_perregion = sum(operas_count)/(regions*length)) %>%
-  ungroup() %>%
-  select(treated, operas_peryar_perregion, operas_total_peryar_perregion, yr00_20) %>%
-  distinct()
-total_values_pop_Annals = data.frame("yr00_20" = 2, 
-                                     "0" = operas_table_pop_Annals$operas_total_peryar_perregion[1], 
-                                     "1" = operas_table_pop_Annals$operas_total_peryar_perregion[2])
-total_values_pop_Annals <- total_values_pop_Annals %>% rename("0" = X0, "1" = X1)
-operas_table_pop_Annals = operas_table_pop_Annals %>% 
-  select(-operas_total_peryar_perregion) %>% 
-  spread(treated, operas_peryar_perregion)
-operas_table_pop_Annals <- rbind(operas_table_pop_Annals,total_values_pop_Annals)
-
-
-operas_table_pop_Amazon
-
-operas_table_pop_total
-
-operas_table_output <- rbind()
 #########
 # Part 3: regressions
 #########
@@ -274,7 +234,7 @@ operas <- operas %>%
 operas$popular <- ifelse(is.na(operas$pop), NA, operas$pop)
 operas$popular <- ifelse(operas$popular>0,1,0)
 
-operas_pop2 <- operas %>% filter(title !='' & first_name !=''& popular==1) %>%
+operas_pop2 <- operas %>% filter(title !='' & (first_name !='' | last_name != '') & popular==1) %>%
   mutate(treated = state %in% c("lombardy", "venetia")) %>%
   mutate(treated = as.numeric(treated)) %>%
   group_by(year, state) %>% 
@@ -294,8 +254,22 @@ reg2 <- felm(count_operas ~ post_treat|
 summary(reg2)
 
 #3c
-reg3 <- felm(count_operas ~ post_treat + yr00_20 + post_treat| 
+reg3 <- felm(count_operas ~ treated + yr00_20 + post_treat| 
               0| # without 2 FE
               0,
             data=operas_fam) 
 summary(reg3)
+
+huxreg(reg, reg2, reg3,
+       stars = c(`*` = 0.1, `**` = 0.05, `***` = 0.01),
+       coefs = c("Treated X post-1801" = "post_treat", # rename vars to smthing pretty
+          "Post-1801" = "yr00_20",
+          "Treated" = "treated"),
+       statistics = c("N" = "nobs",
+                      "R^2" = "r.squared")) %>%
+  add_rows(rbind(c("Year FE", "yes", "yes","no"), #note! you need more "yes" if you have >3 models
+                 c("State FE", "yes","yes", "no"),
+                 c("Sample", "Known", "Known & popular", "Known")),
+           copy_cell_props = FALSE,
+           after = c(nrow(.) - 3))# %>%
+  # quick_docx("report_reg.docx")
