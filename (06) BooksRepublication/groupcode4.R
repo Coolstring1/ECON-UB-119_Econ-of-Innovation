@@ -8,12 +8,30 @@ library(huxtable)
 library(haven) # to read .dta files
 library(gridExtra)
 library(lfe) # to run fixed effect models
+library(class)
+library(mlr)
 rm(list = ls())	
 
-setwd("/Users/Rusanov/Dropbox/NYU/teach innovation ug/data_labs/6_book_republication/code_data/") 
+#setwd("/Users/Rusanov/Dropbox/NYU/teach innovation ug/data_labs/6_book_republication/code_data/") 
 books <- read_stata("books_all.dta")
 
-###
+
+###Question 1
+
+books_summary <- books %>% 
+  # this will only keep the first observation of each book (books are indexed by id). 
+  # The exact year depends on how the data is sorted
+  distinct(id, .keep_all = TRUE) %>% #.keep_all means "keep variables other than id"
+  group_by(field, brp) %>%
+  summarize(number_books = n()) %>%
+  mutate(brp = recode(brp,  `0` = "non_BRP", `1` = "BRP"))
+
+books_summary1 <- books_summary %>%
+  group_by(brp)%>%
+  summarise(total = sum(number_books))
+### Answer: 291 and compounds
+
+##histograms
 his <- books %>%
   filter(brp==1)%>%
   group_by(id)%>%
@@ -41,17 +59,125 @@ his1 %>%
     plot.title = element_text(size=15)
   )
 
-# explore the data before you do things! This looks at the cities where books are published
-# You observe each book in many years. Let's keep only one observation/book and learn
-# about the books we have
-books_summary <- books %>% 
-  # this will only keep the first observation of each book (books are indexed by id). 
-  # The exact year depends on how the data is sorted
-  distinct(id, .keep_all = TRUE) %>% #.keep_all means "keep variables other than id"
-  group_by(field, brp) %>%
-  summarize(number_books = n()) %>%
-  mutate(brp = recode(brp,  `0` = "non_BRP", `1` = "BRP"))
 
+###Question 2
+
+##Comparing Citations to the same BRP Book by English-language and Other Authors
+regr_table <- books %>%
+  filter(brp == 1)%>%
+  group_by(year_c,id) %>%
+  summarise(Eng = sum(count_eng),
+            Other = sum(count_noeng))
+
+reg_table1<- regr_table %>%
+  group_by(year_c) %>%
+  summarise(Eng = sum(Eng)/n(),
+            Other = sum(Other)/n()) %>%
+  filter(year_c>=1930) 
+  
+
+ggplot(reg_table1) +
+  geom_line(aes(x=year_c, y=Eng, colour = "royalblue"), size = .8) +
+  geom_point(aes(x=year_c, y=Eng, colour = "royalblue"), size = 1.2) +
+  geom_line(aes(x=year_c, y=Other, colour = "darkorange2"), size = .8) +
+  geom_point(aes(x=year_c, y=Other, colour = "darkorange2"), size = 1.2) +
+  geom_vline(xintercept = 1942, linetype = "dashed", size = 0.75) +
+  geom_text(aes(x=1938, label="BRP", y=0.8), 
+            colour="black", 
+            angle=0, 
+            text=element_text(size=10)) +
+  scale_color_identity(name = "", 
+                       breaks = c("royalblue", "darkorange2"), 
+                       labels = c("English", 
+                                  "Other"), 
+                       guide = "legend") +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Citations per book and year") +
+  ggtitle("Figure 1 - Citation BRP Books in English verses Other languages") +
+  theme(legend.position = "right", legend.text = element_text(size = 10))
+
+
+##Comparing BRP and Swiss books
+
+fields_nonBRP <- books_summary %>%
+  spread(brp, number_books) %>%#the new reshape that you should learn
+  filter(non_BRP>=2) %>%
+  mutate(indic_non_brp_field = 1) # you will see why I created this
+
+# we now have 27 fields that have at lest 2 non-BRP books in them. Merge
+# to the original dataset
+books <- merge(books, fields_nonBRP,
+               by = c("field"),
+               all.x = TRUE)
+
+books_comparable <- books %>% filter(indic_non_brp_field ==1)
+
+
+
+
+regr_table2 <- books_comparable %>%
+  filter(chemistry==1|mathematics==1 & diss ==0)%>%
+  group_by(year_c,brp,id)%>%
+  summarise(Eng = sum(count_eng))
+test <- regr_table2 %>%
+  group_by(brp)%>%
+  summarise(n = n())
+
+regr_table2_1 <- regr_table2 %>%
+  group_by(year_c,brp) %>%
+  summarise(cit = sum(Eng)/n())
+
+
+regr_table2_w <- reshape(as.data.frame(regr_table2_1),
+                     idvar = c("year_c"), # which var is id
+                     direction = "wide", # how you want things reshaped
+                     timevar = "brp",  # which var is repeating
+                     sep = "_") %>%
+  filter(year_c>=1930)
+
+
+
+ggplot(regr_table2_w) +
+  geom_line(aes(x=year_c, y=cit_0, colour = "royalblue"), size = .8) +
+  geom_point(aes(x=year_c, y=cit_0, colour = "royalblue"), size = 1.2) +
+  geom_line(aes(x=year_c, y=cit_1, colour = "darkorange2"), size = .8) +
+  geom_point(aes(x=year_c, y=cit_1, colour = "darkorange2"), size = 1.2) +
+  geom_vline(xintercept = 1942, linetype = "dashed", size = 0.75) +
+  geom_text(aes(x=1938, label="BRP", y=0.8), 
+            colour="black", 
+            angle=0, 
+            text=element_text(size=10)) +
+  scale_color_identity(name = "", 
+                       breaks = c("royalblue", "darkorange2"), 
+                       labels = c("Swiss", 
+                                  "BRP"), 
+                       guide = "legend") +
+  theme_bw() +
+  xlab("Year") +
+  ylab("Citations per book and year") +
+  ggtitle("Figure 2 - Citation BRP Books and Swiss Book") +
+  theme(legend.position = "right", legend.text = element_text(size = 10))
+
+
+knn <- books %>%
+  group_by(id,field) %>%
+  summarise(cite = sum(count_eng) + sum(count_noeng))
+
+knn <- knn%>%
+  filter(field!='')
+
+knn <- knn %>% 
+  mutate(v = 1, fie = field) %>% 
+  spread(fie, v, fill = 0)
+
+normalize <- function(x){
+  return ((x-min(x)) / (max(x)-min(x)))
+}
+
+subset <- as.data.frame(lapply(knn[,3:36],normalize))
+set.seed(0)
+mahalanobis(subset, colMeans(subset), cov(subset))
 
 ### Question 3
 # Using our summary, let's only keep the BRP books in the fields that have at least 2
