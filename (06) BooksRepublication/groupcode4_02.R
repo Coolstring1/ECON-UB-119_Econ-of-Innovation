@@ -113,22 +113,22 @@ reg_ass1 <- regr_table %>%
 reg_ass1$post <- ifelse(reg_ass1$year_c>=1942,1,0)
 reg_ass1$English <- ifelse(reg_ass1$Eng>0,1,0)
 reg_ass1$English_post <- ifelse(reg_ass1$English + reg_ass1$post>=2,1,0)
-reg_assumption1 <- felm(change ~ post + English + English_post| 
+#reg_assumption1 <- felm(change ~ post + English + English_post| 
                id +year_c| # two FEs? use a + to add them
                0,
              data=reg_ass1) 
-summary(reg_assumption1)
+#summary(reg_assumption1)
 # write table to document
-huxreg(reg_assumption1,
-       stars = c(`*` = 0.1, `**` = 0.05, `***` = 0.01),
-       coefs = c("Treated X post-1942" = "English_post", # rename vars to smthing pretty
-                 "Treated" = "English"),
-       statistics = c("N" = "nobs",
-                      "R^2" = "r.squared")) %>%
-  add_rows(rbind(c("Year FE", "yes"), #note! you need more "yes" if you have >3 models
-                 c("State FE", "yes")),
-           copy_cell_props = FALSE,
-           after = c(nrow(.) - 3)) %>% quick_docx(file="report_reg1.docx")
+#huxreg(reg_assumption1,
+#       stars = c(`*` = 0.1, `**` = 0.05, `***` = 0.01),
+#       coefs = c("Treated X post-1942" = "English_post", # rename vars to smthing pretty
+#                 "Treated" = "English"),
+#       statistics = c("N" = "nobs",
+#                      "R^2" = "r.squared")) %>%
+#  add_rows(rbind(c("Year FE", "yes"), #note! you need more "yes" if you have >3 models
+#                 c("State FE", "yes")),
+#           copy_cell_props = FALSE,
+#           after = c(nrow(.) - 3)) %>% quick_docx(file="report_reg1.docx")
 # note: observations counts every entry, but really the N of this sample was 291 unique books
 
 ###Question 3 (Addressing Question 2's issue 2: Comparing BRP and Swiss books)###
@@ -208,7 +208,7 @@ huxreg(reg_assumption2,
        statistics = c("N" = "nobs",
                       "R^2" = "r.squared")) %>%
   add_rows(rbind(c("Year FE", "yes"), #note! you need more "yes" if you have >3 models
-                 c("State FE", "yes")),
+                 c("Book FE", "yes")),
            copy_cell_props = FALSE,
            after = c(nrow(.) - 3)) %>%  quick_docx(file = "report_reg2.docx")
 
